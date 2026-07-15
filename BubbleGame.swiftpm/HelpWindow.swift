@@ -1,66 +1,89 @@
 import SwiftUI
-import Subsonic 
+import Subsonic
 
 struct HelpWindow: View {
     @Binding var showHelp: Bool
     @State private var waveOffset: CGFloat = 0.0
-    @ObservedObject var fxMusic: SubsonicPlayer 
+    @ObservedObject var fxMusic: SubsonicPlayer
 
-    let timer = Timer.publish(every: 0.02, on: .main, in: .common).autoconnect()
-    
-    // Portrait screen size assumptions for iPad/iPhone (adjust as needed)
-    let screenWidth: CGFloat = 375
-    let screenHeight: CGFloat = 667
+    private let timer = Timer.publish(every: 0.02, on: .main, in: .common).autoconnect()
 
-     
     var body: some View {
-        ZStack {
-            Image("sea")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-            
-            // Back button positioned absolutely near top-left
-            Button(action: {
-                fxMusic.play() 
-                showHelp = false
-            }) {
-                Image("back")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 90)
-                    .offset(y: sin(waveOffset * 0.09) * 5)
-            }
-            .buttonStyle(.plain)
-            .position(x: 200, y: 60) // Hardcoded near top-left
-            
-            // Title text centered horizontally, fixed y
-            sineWaveImage("text1", amplitude: 5, speed: 0.08, phase: 0)
-                .scaleEffect(1.4)
-                .frame(width: 270)
-                .position(x: screenWidth / 2 + 150, y: 200)
-            
-            // HStack with wrong1 on left, right1 on right, positioned absolutely near bottom
-            sineWaveImage("wrong1", amplitude:9, speed: 0.1, phase:0)
-                .scaledToFit()
-                .frame(width: 205)
-                .position(x: 230, y: screenHeight - 211)
-            
-            sineWaveImage("right1", amplitude:10, speed: 0.09, phase:0)
-                .scaledToFit()
-                .frame(width: 220)
-                .position(x: screenWidth+60, y: screenHeight - 200)
+        GeometryReader { geometry in
+            helpContent(in: geometry.size, safeAreaInsets: geometry.safeAreaInsets)
         }
-        .frame(width: screenWidth, height: screenHeight) // Fix the whole frame
         .onReceive(timer) { _ in
-            waveOffset += 0.5 
+            waveOffset += 0.5
         }
     }
-    
-    func sineWaveImage(_ imageName: String, amplitude: CGFloat, speed: CGFloat, phase: Double) -> some View {
+
+    private func helpContent(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            backgroundImage(in: size, safeAreaInsets: safeAreaInsets)
+
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: {
+                        fxMusic.play()
+                        showHelp = false
+                    }) {
+                        Image("back")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: min(max(size.width * 0.25, 96), 126))
+                            .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 4)
+                            .offset(y: sin(waveOffset * 0.05) * 3)
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+                .padding(.horizontal, max(18, size.width * 0.05))
+                .padding(.top, safeAreaInsets.top)
+
+                Spacer(minLength: size.height * 0.08)
+
+                sineWaveImage("text1", amplitude: 2, speed: 0.05, phase: 0)
+                    .frame(width: min(size.width * 0.99, 380))
+
+                Spacer(minLength: size.height * 0.08)
+
+                HStack(alignment: .center, spacing: max(6, size.width * 0.02)) {
+                    sineWaveImage("wrong1", amplitude: 3, speed: 0.05, phase: 0)
+                        .frame(width: min(size.width * 0.50, 220))
+
+                    sineWaveImage("right1", amplitude: 3, speed: 0.05, phase: 0.7)
+                        .frame(width: min(size.width * 0.50, 220))
+                }
+                .frame(maxWidth: size.width)
+                .padding(.horizontal, max(6, size.width * 0.02))
+
+                Spacer(minLength: size.height * 0.1)
+            }
+            .frame(width: size.width, height: size.height)
+        }
+    }
+
+    private func sineWaveImage(_ imageName: String, amplitude: CGFloat, speed: CGFloat, phase: Double) -> some View {
         Image(imageName)
             .resizable()
             .scaledToFit()
             .offset(y: CGFloat(sin(waveOffset * speed + phase) * amplitude))
+    }
+
+    private func backgroundImage(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
+        let width = size.width + safeAreaInsets.leading + safeAreaInsets.trailing + 80
+        let height = size.height + safeAreaInsets.top + safeAreaInsets.bottom + 80
+
+        return Image("sea")
+            .resizable()
+            .scaledToFill()
+            .frame(width: width, height: height)
+            .position(x: size.width / 2, y: size.height / 2)
+            .clipped()
+            .ignoresSafeArea()
     }
 }

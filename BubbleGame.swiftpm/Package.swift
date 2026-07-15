@@ -16,6 +16,8 @@ let package = Package(
         .iOSApplication(
             name: "Plz Dont Pop",
             targets: ["AppModule"],
+            bundleIdentifier: "com.jamesg.myfirstbubblegame",
+            teamIdentifier: "46AFMHP67F",
             displayVersion: "1.0",
             bundleVersion: "1",
             appIcon: .asset("AppIcon"),

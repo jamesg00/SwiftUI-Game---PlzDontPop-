@@ -4,121 +4,151 @@ import Subsonic
 struct SettingsView: View {
     @Binding var showSettings: Bool
     @State private var waveOffset: CGFloat = 0.0
-    @State private var dragAmount = CGSize.zero        
-    @State private var dragX : CGFloat = 0.0  
-    @State private var lastDragX: CGFloat = 0.0
-    @State private var dragXf : CGFloat = 0.0
-    @State private var lastDragXf : CGFloat = 0.0
-    @ObservedObject var bgMusic: SubsonicPlayer 
+    @State private var bgVolumeLevel: CGFloat = 0.7
+    @State private var fxVolumeLevel: CGFloat = 0.7
+    @State private var coinVolumeLevel: CGFloat = 0.8
+    @State private var waterVolumeLevel: CGFloat = 0.9
+    
+
+    @ObservedObject var bgMusic: SubsonicPlayer
     @ObservedObject var fxMusic: SubsonicPlayer
+    @ObservedObject var coinMusic: SubsonicPlayer
+    @ObservedObject var waterMusic: SubsonicPlayer
 
-    
-    let timer = Timer.publish(every: 0.02, on: .main, in: .common).autoconnect()
-    
+    private let timer = Timer.publish(every: 0.02, on: .main, in: .common).autoconnect()
+
     var body: some View {
-        ZStack {
-            Image("sea")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-            
-            // ✅ Back button with sine wave animation
-            Button(action: {
-                fxMusic.play()
-                showSettings = false
-            }) {
-                Image("back")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 80)
-                
-               
-            }
-            .offset(y: CGFloat(sin(waveOffset * 0.1) * 8)) // 👈 Sine wave applied here
-            .buttonStyle(.plain)
-            .position(x: 200, y: 50) // 👈 Adjust this as needed for placement
-            
-            
-        //Code for images of music volume text and volumes slider. Adds play button to be moved this will contorl background music
-            Image("musicvol")
-                .resizable()
-                .scaledToFit()
-                .position(x: 120, y: 160 + CGFloat(sin(waveOffset * 0.08) * 6))                 
-                .frame(width:230) 
-            
-            Image("volume1")
-                .resizable()   
-                .scaledToFit()   
-                .position(x: 150, y:220)
-                .frame(width:300)
-            
-            Image("play2")
-                .resizable()
-                .scaledToFit()
-                .position(x: -98 + dragX, y: 220) // Always based off -98 starting point
-                .frame(width: 35)
-                .zIndex(dragX == 0 ? 0 : 1)
-                .gesture(
-                    DragGesture(coordinateSpace: .global)
-                        .onChanged { value in
-                            let newX = lastDragX + value.translation.width
-                            dragX = min(max(newX, 0), 235) // clamp between 0 and 250
-                            
-                            bgMusic.volume = dragX/250
-                        }
-                        .onEnded { _ in
-                            lastDragX = dragX // lock in position
-                        }
-                )
-            
-             
-        //Same thing but for fx volume. This will control hit1.mp3    
-            Image("fxvol")
-                .resizable()
-                .scaledToFit()
-                .position(x: 80, y: 370 + CGFloat(sin(waveOffset * 0.05) * 6))
-                .frame(width:160)
-            
-            Image("volume1")
-                .resizable()   
-                .scaledToFit()   
-                .position(x: 150, y:430)
-                .frame(width:300)
-
-            Image("play2")
-                .resizable()
-                .scaledToFit()
-                .position(x:-98 + dragXf, y:430)
-                .frame(width:35)
-                .zIndex(dragXf == 0 ? 0 : 1)
-
-                .gesture(
-                    DragGesture(coordinateSpace: .global)
-                        .onChanged { value in
-                            let newXf = lastDragXf + value.translation.width
-                            dragXf = min(max(newXf, 0), 235) // clamp between 0 and 250
-                            
-                            fxMusic.volume = dragXf/250
-                        }
-                        .onEnded { _ in
-                            lastDragXf = dragXf // lock in position
-                        }
-                )            
+        GeometryReader { geometry in
+            settingsContent(in: geometry.size, safeAreaInsets: geometry.safeAreaInsets)
+        }
+        .onAppear {
+            syncVolumeLevelsFromPlayers()
         }
         .onReceive(timer) { _ in
             waveOffset += 1
         }
-        
-        .onAppear{
-            let initialX = bgMusic.volume * 250
-            dragX = initialX
-            lastDragX = initialX
-            
-            let initialXf = fxMusic.volume * 250
-            dragXf = initialXf
-            lastDragXf = initialXf
+    }
+
+    private func settingsContent(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
+        ZStack {
+            Color.black
+                .ignoresSafeArea()
+
+            backgroundImage(in: size, safeAreaInsets: safeAreaInsets)
+
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: {
+                        fxMusic.play()
+                        showSettings = false
+                    }) {
+                        Image("back")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: min(max(size.width * 0.25, 96), 126))
+                            .shadow(color: .black.opacity(0.35), radius: 8, x: 0, y: 4)
+                            .offset(y: CGFloat(sin(waveOffset * 0.06) * 3))
+                    }
+                    .buttonStyle(.plain)
+
+                    Spacer()
+                }
+                .padding(.horizontal, max(18, size.width * 0.05))
+                .padding(.top, safeAreaInsets.top + 12)
+
+                Spacer(minLength: size.height * 0.06)
+
+                VStack(spacing: max(46, size.height * 0.075)) {
+                    volumeControl(
+                        titleImage: "musicvol",
+                        titleWidth: min(size.width * 0.9, 380),
+                        level: $bgVolumeLevel,
+                        size: size
+                    ) { level in
+                        bgMusic.volume = level
+                    }
+
+                    volumeControl(
+                        titleImage: "fxvol",
+                        titleWidth: min(size.width * 0.72, 300),
+                        level: $fxVolumeLevel,
+                        size: size
+                    ) { level in
+                        fxMusic.volume = level;
+                        coinMusic.volume = level;
+                        waterMusic.volume = level
+                    }
+                }
+                .padding(.horizontal, 24)
+
+                Spacer(minLength: size.height * 0.18)
+            }
+            .frame(width: size.width, height: size.height)
         }
     }
-    
 
+    private func volumeControl(
+        titleImage: String,
+        titleWidth: CGFloat,
+        level: Binding<CGFloat>,
+        size: CGSize,
+        onChange: @escaping (CGFloat) -> Void
+    ) -> some View {
+        let trackWidth = min(size.width * 0.98, 430)
+        let knobSize = min(max(size.width * 0.14, 52), 66)
+        let trackHeight = min(max(size.height * 0.08, 66), 86)
+        let trackTravel = max(trackWidth - knobSize, 1)
+
+        return VStack(spacing: 16) {
+            Image(titleImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: titleWidth)
+                .offset(y: CGFloat(sin(waveOffset * 0.05) * 2))
+
+            ZStack(alignment: .leading) {
+                Image("volume1")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: trackWidth, height: trackHeight)
+
+                Image("play2")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: knobSize)
+                    .offset(x: trackTravel * level.wrappedValue)
+            }
+            .frame(width: trackWidth, height: max(trackHeight, knobSize))
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let clampedX = min(max(value.location.x - knobSize / 2, 0), trackTravel)
+                        let newLevel = clampedX / trackTravel
+                        level.wrappedValue = newLevel
+                        onChange(newLevel)
+                    }
+            )
+        }
+    }
+
+    private func backgroundImage(in size: CGSize, safeAreaInsets: EdgeInsets) -> some View {
+        let width = size.width + safeAreaInsets.leading + safeAreaInsets.trailing + 80
+        let height = size.height + safeAreaInsets.top + safeAreaInsets.bottom + 80
+
+        return Image("sea")
+            .resizable()
+            .scaledToFill()
+            .frame(width: width, height: height)
+            .position(x: size.width / 2, y: size.height / 2)
+            .clipped()
+            .ignoresSafeArea()
+    }
+
+    private func syncVolumeLevelsFromPlayers() {
+        bgVolumeLevel = min(max(bgMusic.volume, 0), 1)
+        fxVolumeLevel = min(max(fxMusic.volume, 0), 1)
+        coinVolumeLevel = min(max(coinMusic.volume, 0), 1)
+        waterVolumeLevel = min(max(waterMusic.volume, 0), 1)
+    }
 }
